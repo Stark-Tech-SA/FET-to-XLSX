@@ -9,7 +9,6 @@ from PySide6.QtWidgets import (
     QProgressBar, QTextEdit, QVBoxLayout, QWidget, QHBoxLayout,
 )
 
-from fet_to_xlsx.exporter.excel_exporter import ExcelExporter
 from fet_to_xlsx.parser.fet_reader import FetReader, FetReaderError
 from fet_to_xlsx.parser.models import FetData
 from fet_to_xlsx.parser.parser import FetParser
@@ -26,7 +25,6 @@ class MainWindow(QMainWindow):
         self.resize(720, 520)
         self.reader = FetReader()
         self.parser = FetParser()
-        self.exporter = ExcelExporter()
         self.current_path: Path | None = None
         self.data: FetData | None = None
         self.path_label = QLabel("No se ha seleccionado ningún archivo.")
@@ -84,8 +82,10 @@ class MainWindow(QMainWindow):
         if not output:
             return
         try:
+            from fet_to_xlsx.exporter.excel_exporter import ExcelExporter
+
             self.progress.setValue(20)
-            path = self.exporter.export(self.data, output)
+            path = ExcelExporter().export(self.data, output)
             self.progress.setValue(100)
             QMessageBox.information(self, "Exportación completa", f"Archivo generado:\n{path}")
         except Exception as exc:  # noqa: BLE001 - GUI boundary must not leak exceptions.

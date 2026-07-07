@@ -1,3 +1,6 @@
+import pytest
+
+openpyxl = pytest.importorskip("openpyxl")
 from openpyxl import load_workbook
 
 from fet_to_xlsx.exporter.excel_exporter import ExcelExporter

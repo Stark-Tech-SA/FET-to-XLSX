@@ -8,10 +8,12 @@ Aplicación de escritorio en Python para convertir archivos de FET Timetabling (
 - Validación de archivo existente, extensión, XML válido y estructura compatible.
 - Modelos de dominio tipados para institución, docentes, materias, grupos, salones, actividades y restricciones.
 - Exportación profesional con `openpyxl` a múltiples hojas: información general, docentes, materias, grupos, salones, actividades, restricciones y horarios.
-- Interfaz gráfica con PySide6: selección de archivo, resumen, progreso, exportación y mensajes de error.
+- Interfaz gráfica preferente con PySide6 y fallback Tkinter: selección de archivo, resumen, progreso, exportación y mensajes de error.
 - Parser tolerante a variaciones menores entre versiones: las restricciones desconocidas se exportan con todos sus campos en lugar de descartarse.
 
 ## Instalación
+
+> Si ve `ModuleNotFoundError: No module named 'PySide6'`, significa que no instaló las dependencias. La aplicación ahora intenta abrir una interfaz alternativa con Tkinter, pero para exportar Excel necesita instalar `openpyxl`.
 
 ```bash
 python -m venv .venv
