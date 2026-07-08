@@ -9,6 +9,7 @@ from tkinter import filedialog, messagebox, scrolledtext, ttk
 from fet_to_xlsx.parser.fet_reader import FetReader, FetReaderError
 from fet_to_xlsx.parser.models import FetData
 from fet_to_xlsx.parser.parser import FetParser
+from fet_to_xlsx.parser.solution_finder import SolutionFinder
 
 LOGGER = logging.getLogger(__name__)
 
@@ -22,6 +23,7 @@ class TkMainWindow(tk.Tk):
         self.geometry("720x520")
         self.reader = FetReader()
         self.parser = FetParser()
+        self.solution_finder = SolutionFinder()
         self.current_path: Path | None = None
         self.data: FetData | None = None
         self.path_var = tk.StringVar(value="No se ha seleccionado ningún archivo.")
@@ -54,6 +56,8 @@ class TkMainWindow(tk.Tk):
             root = self.reader.read(file_name)
             self.progress_var.set(45)
             self.data = self.parser.parse(root)
+            if not self.data.scheduled_activities:
+                self.data.scheduled_activities = self.solution_finder.find_for(file_name, self.data)
             self.current_path = Path(file_name)
             self.path_var.set(str(self.current_path))
             self._set_summary(self._summary_text(self.data))

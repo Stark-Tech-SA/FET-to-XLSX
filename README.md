@@ -50,10 +50,10 @@ requirements.txt  # dependencias
 
 La hoja de horarios se genera cuando el archivo incluye información de colocación. El parser reconoce dos casos:
 
-- Salidas XML que contienen actividades ya ubicadas con día/hora/salón.
+- Salidas XML que contienen actividades ya ubicadas con día/hora/salón, incluyendo archivos compañeros generados por FET en la misma carpeta o bajo `timetables/` con nombres como `*_activities.xml`.
 - Archivos `.fet` con actividades bloqueadas mediante `ConstraintActivityPreferredStartingTime` y salones bloqueados mediante `ConstraintActivityPreferredRoom`.
 
-Si el `.fet` solo contiene datos de entrada y restricciones generales, pero no una solución ni actividades bloqueadas, no existe suficiente información para reconstruir un horario final; en ese caso se informa que no hay solución incluida.
+Si el `.fet` solo contiene datos de entrada y restricciones generales, y tampoco existen archivos XML de resultado junto al `.fet`, no existe suficiente información para reconstruir un horario final; en ese caso se informa que no hay solución incluida.
 
 Además, los horarios se exportan en hojas individuales por docente, grupo y salón.
 
