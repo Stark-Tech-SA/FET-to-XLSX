@@ -8,10 +8,7 @@ from fet_to_xlsx.parser.models import (
     Activity, Constraint, FetData, Institution, Room, ScheduledActivity,
     StudentsGroup, Subject, Teacher,
 )
-
-
-def _text(element: ET.Element | None, default: str = "") -> str:
-    return (element.text or default).strip() if element is not None else default
+from fet_to_xlsx.parser.xml_utils import child, children, descendant, descendants, local_name, text
 
 
 def _int(value: str) -> int | None:
@@ -29,18 +26,19 @@ class FetParser:
     """Convert FET XML into typed domain models.
 
     The parser intentionally keeps unknown constraint fields instead of failing,
-    because FET versions may introduce new tags or minor naming differences.
+    because FET versions may introduce new tags or minor naming differences. It
+    also ignores XML namespaces and underscore/case differences in known tags.
     """
 
     def parse(self, root: ET.Element) -> FetData:
         data = FetData(
             institution=Institution(
-                name=_text(root.find("Institution_Name")),
-                version=root.attrib.get("version", _text(root.find("Version"))),
-                comments=_text(root.find("Comments")),
+                name=text(descendant(root, "Institution_Name", "InstitutionName")),
+                version=root.attrib.get("version", text(descendant(root, "Version"))),
+                comments=text(descendant(root, "Comments")),
             ),
-            days=[_text(day.find("Name")) for day in root.findall("./Days_List/Day")],
-            hours=[_text(hour.find("Name")) for hour in root.findall("./Hours_List/Hour")],
+            days=[text(child(day, "Name")) for day in self._list_items(root, "Days_List", "Day")],
+            hours=[text(child(hour, "Name")) for hour in self._list_items(root, "Hours_List", "Hour")],
         )
         data.teachers = self._parse_teachers(root)
         data.subjects = self._parse_subjects(root)
@@ -48,81 +46,150 @@ class FetParser:
         data.rooms = self._parse_rooms(root)
         data.activities = self._parse_activities(root)
         data.constraints = self._parse_constraints(root)
-        data.scheduled_activities = self._parse_scheduled(root)
+        data.scheduled_activities = self._parse_scheduled(root, data.constraints)
         self._attach_teacher_availability(data)
         return data
 
     def _parse_teachers(self, root: ET.Element) -> list[Teacher]:
-        return [Teacher(_text(t.find("Name")), _text(t.find("Comments"))) for t in root.findall("./Teachers_List/Teacher")]
+        return [
+            Teacher(text(child(teacher, "Name")), text(child(teacher, "Comments")))
+            for teacher in self._list_items(root, "Teachers_List", "Teacher")
+            if text(child(teacher, "Name"))
+        ]
 
     def _parse_subjects(self, root: ET.Element) -> list[Subject]:
-        return [Subject(_text(s.find("Name")), _text(s.find("Comments"))) for s in root.findall("./Subjects_List/Subject")]
+        return [
+            Subject(text(child(subject, "Name")), text(child(subject, "Comments")))
+            for subject in self._list_items(root, "Subjects_List", "Subject")
+            if text(child(subject, "Name"))
+        ]
 
     def _parse_students(self, root: ET.Element) -> list[StudentsGroup]:
         groups: list[StudentsGroup] = []
-        for year in root.findall("./Students_List/Year"):
-            year_name = _text(year.find("Name"))
-            groups.append(StudentsGroup(year=year_name, number_of_students=_int(_text(year.find("Number_of_Students")))))
-            for group in year.findall("Group"):
-                group_name = _text(group.find("Name"))
-                groups.append(StudentsGroup(year=year_name, group=group_name, number_of_students=_int(_text(group.find("Number_of_Students")))))
-                for subgroup in group.findall("Subgroup"):
+        for year in self._list_items(root, "Students_List", "Year"):
+            year_name = text(child(year, "Name"))
+            groups.append(StudentsGroup(year=year_name, number_of_students=_int(text(child(year, "Number_of_Students")))))
+            for group in children(year, "Group"):
+                group_name = text(child(group, "Name"))
+                groups.append(StudentsGroup(
+                    year=year_name,
+                    group=group_name,
+                    number_of_students=_int(text(child(group, "Number_of_Students"))),
+                ))
+                for subgroup in children(group, "Subgroup"):
                     groups.append(StudentsGroup(
                         year=year_name,
                         group=group_name,
-                        subgroup=_text(subgroup.find("Name")),
-                        number_of_students=_int(_text(subgroup.find("Number_of_Students"))),
+                        subgroup=text(child(subgroup, "Name")),
+                        number_of_students=_int(text(child(subgroup, "Number_of_Students"))),
                     ))
         return groups
 
     def _parse_rooms(self, root: ET.Element) -> list[Room]:
-        return [Room(
-            name=_text(r.find("Name")),
-            capacity=_int(_text(r.find("Capacity"))),
-            building=_text(r.find("Building")),
-            comments=_text(r.find("Comments")),
-        ) for r in root.findall("./Rooms_List/Room")]
+        return [
+            Room(
+                name=text(child(room, "Name")),
+                capacity=_int(text(child(room, "Capacity"))),
+                building=text(child(room, "Building")),
+                comments=text(child(room, "Comments")),
+            )
+            for room in self._list_items(root, "Rooms_List", "Room")
+            if text(child(room, "Name"))
+        ]
 
     def _parse_activities(self, root: ET.Element) -> list[Activity]:
         activities: list[Activity] = []
-        for item in root.findall("./Activities_List/Activity"):
-            teachers = [_text(e) for e in item.findall("Teacher") if _text(e)]
-            students = [_text(e) for e in item.findall("Students") if _text(e)]
+        for item in self._list_items(root, "Activities_List", "Activity"):
+            teachers = [text(teacher) for teacher in children(item, "Teacher") if text(teacher)]
+            students = [text(student) for student in children(item, "Students", "Student") if text(student)]
+            activity_id = text(child(item, "Id", "Activity_Id"))
+            if not activity_id:
+                continue
             activities.append(Activity(
-                id=_text(item.find("Id")),
+                id=activity_id,
                 teachers=teachers,
-                subject=_text(item.find("Subject")),
+                subject=text(child(item, "Subject")),
                 students=students,
-                duration=_int(_text(item.find("Duration"))),
-                total_duration=_int(_text(item.find("Total_Duration"))),
-                student_count=_int(_text(item.find("Number_Of_Students"))),
-                active=_bool(_text(item.find("Active"), "true")),
-                comments=_text(item.find("Comments")),
+                duration=_int(text(child(item, "Duration"))),
+                total_duration=_int(text(child(item, "Total_Duration"))),
+                student_count=_int(text(child(item, "Number_Of_Students"))),
+                active=_bool(text(child(item, "Active"), "true")),
+                comments=text(child(item, "Comments")),
             ))
         return activities
 
     def _parse_constraints(self, root: ET.Element) -> list[Constraint]:
         constraints: list[Constraint] = []
-        for category, path in (("Tiempo", "./Time_Constraints_List"), ("Espacio", "./Space_Constraints_List")):
-            parent = root.find(path)
+        for category, list_name in (("Tiempo", "Time_Constraints_List"), ("Espacio", "Space_Constraints_List")):
+            parent = descendant(root, list_name)
             if parent is None:
                 continue
             for node in list(parent):
                 fields = self._flatten_children(node)
-                constraints.append(Constraint(category=category, type=node.tag, weight=str(fields.pop("Weight_Percentage", "")), fields=fields))
+                constraints.append(Constraint(
+                    category=category,
+                    type=local_name(node.tag),
+                    weight=str(fields.pop("Weight_Percentage", fields.pop("Weight", ""))),
+                    fields=fields,
+                ))
         return constraints
 
-    def _parse_scheduled(self, root: ET.Element) -> list[ScheduledActivity]:
-        scheduled: list[ScheduledActivity] = []
-        for parent in root.findall(".//Activities_Timetable") + root.findall(".//Activity_Timetable"):
-            nodes: Iterable[ET.Element] = parent.findall("Activity") if parent.tag != "Activity" else [parent]
-            for node in nodes:
-                activity_id = _text(node.find("Id")) or _text(node.find("Activity_Id"))
-                day = _text(node.find("Day"))
-                hour = _text(node.find("Hour"))
-                if activity_id and day and hour:
-                    scheduled.append(ScheduledActivity(activity_id, day, hour, _text(node.find("Room"))))
+    def _parse_scheduled(self, root: ET.Element, constraints: list[Constraint]) -> list[ScheduledActivity]:
+        scheduled = self._parse_solution_nodes(root)
+        if not scheduled:
+            scheduled = self._parse_locked_time_constraints(constraints)
+        self._apply_room_constraints(scheduled, constraints)
         return scheduled
+
+    def _parse_solution_nodes(self, root: ET.Element) -> list[ScheduledActivity]:
+        scheduled: list[ScheduledActivity] = []
+        parents = descendants(root, "Activities_Timetable", "Activity_Timetable", "Timetable")
+        for parent in parents:
+            nodes: Iterable[ET.Element] = children(parent, "Activity") if local_name(parent.tag) != "Activity" else [parent]
+            for node in nodes:
+                activity_id = text(child(node, "Id", "Activity_Id"))
+                day = text(child(node, "Day", "Preferred_Day"))
+                hour = text(child(node, "Hour", "Preferred_Hour"))
+                if activity_id and day and hour:
+                    scheduled.append(ScheduledActivity(activity_id, day, hour, text(child(node, "Room"))))
+        return scheduled
+
+    def _parse_locked_time_constraints(self, constraints: list[Constraint]) -> list[ScheduledActivity]:
+        scheduled: list[ScheduledActivity] = []
+        for constraint in constraints:
+            normalized_type = constraint.type.lower().replace("_", "")
+            if "activitypreferredstartingtime" not in normalized_type:
+                continue
+            if not self._constraint_is_effective_solution_hint(constraint):
+                continue
+            activity_id = str(constraint.fields.get("Activity_Id") or constraint.fields.get("ActivityId") or "")
+            day = str(constraint.fields.get("Preferred_Day") or constraint.fields.get("PreferredDay") or "")
+            hour = str(constraint.fields.get("Preferred_Hour") or constraint.fields.get("PreferredHour") or "")
+            if activity_id and day and hour:
+                scheduled.append(ScheduledActivity(activity_id=activity_id, day=day, hour=hour))
+        return scheduled
+
+    def _apply_room_constraints(self, scheduled: list[ScheduledActivity], constraints: list[Constraint]) -> None:
+        rooms_by_activity: dict[str, str] = {}
+        for constraint in constraints:
+            normalized_type = constraint.type.lower().replace("_", "")
+            if "activitypreferredroom" not in normalized_type:
+                continue
+            if not self._constraint_is_effective_solution_hint(constraint):
+                continue
+            activity_id = str(constraint.fields.get("Activity_Id") or constraint.fields.get("ActivityId") or "")
+            room = str(constraint.fields.get("Room") or constraint.fields.get("Preferred_Room") or "")
+            if activity_id and room:
+                rooms_by_activity[activity_id] = room
+        for placement in scheduled:
+            if not placement.room:
+                placement.room = rooms_by_activity.get(placement.activity_id, "")
+
+    def _constraint_is_effective_solution_hint(self, constraint: Constraint) -> bool:
+        active = _bool(str(constraint.fields.get("Active", "true")))
+        weight = str(constraint.weight or "100").replace("%", "")
+        locked = _bool(str(constraint.fields.get("Permanently_Locked", "true")))
+        return active and (weight in {"", "100", "100.0"} or locked)
 
     def _attach_teacher_availability(self, data: FetData) -> None:
         by_name = {teacher.name: teacher for teacher in data.teachers}
@@ -132,19 +199,20 @@ class FetParser:
                 if teacher:
                     teacher.availability.append(constraint.fields)
 
+    def _list_items(self, root: ET.Element, list_name: str, item_name: str) -> list[ET.Element]:
+        parent = descendant(root, list_name)
+        return children(parent, item_name) if parent is not None else []
+
     def _flatten_children(self, node: ET.Element) -> dict[str, object]:
         fields: dict[str, object] = {}
-        counters: dict[str, int] = {}
-        for child in list(node):
-            value: object = self._flatten_children(child) if list(child) else _text(child)
-            key = child.tag
+        for item in list(node):
+            value: object = self._flatten_children(item) if list(item) else text(item)
+            key = local_name(item.tag)
             if key in fields:
-                counters[key] = counters.get(key, 1) + 1
                 existing = fields[key]
                 if not isinstance(existing, list):
                     fields[key] = [existing]
                 fields[key].append(value)  # type: ignore[union-attr]
             else:
-                counters[key] = 1
                 fields[key] = value
         return fields

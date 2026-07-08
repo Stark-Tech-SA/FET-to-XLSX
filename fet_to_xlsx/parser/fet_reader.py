@@ -4,6 +4,8 @@ from __future__ import annotations
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
+from fet_to_xlsx.parser.xml_utils import descendant, normalized_name
+
 
 class FetReaderError(Exception):
     """Raised when a FET file cannot be read or validated."""
@@ -24,6 +26,6 @@ class FetReader:
             root = ET.parse(file_path).getroot()
         except ET.ParseError as exc:
             raise FetReaderError(f"XML inválido o archivo corrupto: {exc}") from exc
-        if root.tag != "fet" and root.find("Institution_Name") is None:
+        if normalized_name(root.tag) != "fet" and descendant(root, "Institution_Name") is None:
             raise FetReaderError("La estructura no parece compatible con FET.")
         return root

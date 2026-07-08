@@ -45,6 +45,18 @@ main.py           # punto de entrada
 requirements.txt  # dependencias
 ```
 
+
+## Horarios generados
+
+La hoja de horarios se genera cuando el archivo incluye información de colocación. El parser reconoce dos casos:
+
+- Salidas XML que contienen actividades ya ubicadas con día/hora/salón.
+- Archivos `.fet` con actividades bloqueadas mediante `ConstraintActivityPreferredStartingTime` y salones bloqueados mediante `ConstraintActivityPreferredRoom`.
+
+Si el `.fet` solo contiene datos de entrada y restricciones generales, pero no una solución ni actividades bloqueadas, no existe suficiente información para reconstruir un horario final; en ese caso se informa que no hay solución incluida.
+
+Además, los horarios se exportan en hojas individuales por docente, grupo y salón.
+
 ## Decisiones de diseño
 
 Los archivos `.fet` pueden variar entre versiones de FET. Por eso el parser:
