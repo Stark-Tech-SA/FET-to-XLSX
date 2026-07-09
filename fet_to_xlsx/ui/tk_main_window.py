@@ -58,6 +58,10 @@ class TkMainWindow(tk.Tk):
             self.data = self.parser.parse(root)
             if not self.data.scheduled_activities:
                 self.data.scheduled_activities = self.solution_finder.find_for(file_name, self.data)
+                scheduled_ids = {placement.activity_id for placement in self.data.scheduled_activities}
+                self.data.unscheduled_activity_ids = [
+                    activity.id for activity in self.data.activities if activity.id not in scheduled_ids
+                ]
             self.current_path = Path(file_name)
             self.path_var.set(str(self.current_path))
             self._set_summary(self._summary_text(self.data))

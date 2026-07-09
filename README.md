@@ -48,14 +48,15 @@ requirements.txt  # dependencias
 
 ## Horarios generados
 
-La hoja de horarios se genera cuando el archivo incluye información de colocación. El parser reconoce dos casos:
+La hoja de horarios se genera cruzando datos por `Activity_Id`:
 
-- Salidas XML que contienen actividades ya ubicadas con día/hora/salón, incluyendo archivos compañeros generados por FET en la misma carpeta o bajo `timetables/` con nombres como `*_activities.xml`.
-- Archivos `.fet` con actividades bloqueadas mediante `ConstraintActivityPreferredStartingTime` y salones bloqueados mediante `ConstraintActivityPreferredRoom`.
+- `Activities_List/Activity` aporta `Id`, `Subject`, `Teacher`, `Students` y `Duration`.
+- `Time_Constraints_List/ConstraintActivityPreferredStartingTime` aporta `Activity_Id`, `Day`, `Hour` y `Permanently_Locked`; ahí vive la ubicación real del bloque.
+- `Space_Constraints_List/ConstraintActivityPreferredRoom` puede aportar el salón por `Activity_Id`.
+
+El exportador agrupa por `Students` para crear hojas individuales de grupos/fichas y por `Teacher` para crear hojas individuales de docentes. Cada bloque ocupa desde la fila de `Hour` hasta `Hour + Duration - 1` y esas celdas se combinan visualmente. Las actividades sin constraint de inicio se listan en la hoja **Sin horario**, y los solapes detectados por grupo/docente se registran en **Conflictos** sin sobrescribir celdas.
 
 Si el `.fet` solo contiene datos de entrada y restricciones generales, y tampoco existen archivos XML de resultado junto al `.fet`, no existe suficiente información para reconstruir un horario final; en ese caso se informa que no hay solución incluida.
-
-Además, los horarios se exportan en hojas individuales por docente, grupo y salón.
 
 ## Decisiones de diseño
 

@@ -47,6 +47,8 @@ class FetParser:
         data.activities = self._parse_activities(root)
         data.constraints = self._parse_constraints(root)
         data.scheduled_activities = self._parse_scheduled(root, data.constraints)
+        scheduled_ids = {placement.activity_id for placement in data.scheduled_activities}
+        data.unscheduled_activity_ids = [activity.id for activity in data.activities if activity.id not in scheduled_ids]
         self._attach_teacher_availability(data)
         return data
 
@@ -100,8 +102,8 @@ class FetParser:
     def _parse_activities(self, root: ET.Element) -> list[Activity]:
         activities: list[Activity] = []
         for item in self._list_items(root, "Activities_List", "Activity"):
-            teachers = [text(teacher) for teacher in children(item, "Teacher") if text(teacher)]
-            students = [text(student) for student in children(item, "Students", "Student") if text(student)]
+            teachers = [text(teacher) for teacher in children(item, "Teacher") if text(teacher)] or ["SIN DOCENTE"]
+            students = [text(student) for student in children(item, "Students", "Student") if text(student)] or ["SIN GRUPO"]
             activity_id = text(child(item, "Id", "Activity_Id"))
             if not activity_id:
                 continue
@@ -163,8 +165,8 @@ class FetParser:
             if not self._constraint_is_effective_solution_hint(constraint):
                 continue
             activity_id = str(constraint.fields.get("Activity_Id") or constraint.fields.get("ActivityId") or "")
-            day = str(constraint.fields.get("Preferred_Day") or constraint.fields.get("PreferredDay") or "")
-            hour = str(constraint.fields.get("Preferred_Hour") or constraint.fields.get("PreferredHour") or "")
+            day = str(constraint.fields.get("Day") or constraint.fields.get("Preferred_Day") or constraint.fields.get("PreferredDay") or "")
+            hour = str(constraint.fields.get("Hour") or constraint.fields.get("Preferred_Hour") or constraint.fields.get("PreferredHour") or "")
             if activity_id and day and hour:
                 scheduled.append(ScheduledActivity(activity_id=activity_id, day=day, hour=hour))
         return scheduled

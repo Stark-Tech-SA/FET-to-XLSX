@@ -24,6 +24,36 @@ def test_parser_extracts_core_fet_entities():
     assert data.activities[0].teachers == ["Ana"]
     assert data.constraints[0].type == "ConstraintTeacherNotAvailableTimes"
     assert data.teachers[0].availability
+    assert data.unscheduled_activity_ids == ["1"]
+
+
+def test_parser_crosses_activity_id_with_day_hour_constraints():
+    xml = """
+    <fet version="6.0">
+      <Institution_Name>Colegio Demo</Institution_Name>
+      <Days_List><Day><Name>Lunes</Name></Day><Day><Name>Martes</Name></Day></Days_List>
+      <Hours_List><Hour><Name>6:00</Name></Hour><Hour><Name>7:00</Name></Hour><Hour><Name>8:00</Name></Hour></Hours_List>
+      <Activities_List>
+        <Activity><Id>617</Id><Subject>Programación</Subject><Teacher>Ana</Teacher><Students>Ficha 1</Students><Duration>2</Duration></Activity>
+        <Activity><Id>618</Id><Subject>Sin ubicar</Subject><Duration>1</Duration></Activity>
+      </Activities_List>
+      <Time_Constraints_List>
+        <ConstraintActivityPreferredStartingTime>
+          <Activity_Id>617</Activity_Id><Day>Martes</Day><Hour>7:00</Hour><Permanently_Locked>true</Permanently_Locked>
+        </ConstraintActivityPreferredStartingTime>
+      </Time_Constraints_List>
+    </fet>
+    """
+    data = FetParser().parse(ET.fromstring(xml))
+    assert data.days == ["Lunes", "Martes"]
+    assert data.hours == ["6:00", "7:00", "8:00"]
+    assert data.activities[0].duration == 2
+    assert data.activities[1].teachers == ["SIN DOCENTE"]
+    assert data.activities[1].students == ["SIN GRUPO"]
+    assert data.scheduled_activities[0].activity_id == "617"
+    assert data.scheduled_activities[0].day == "Martes"
+    assert data.scheduled_activities[0].hour == "7:00"
+    assert data.unscheduled_activity_ids == ["618"]
 
 
 def test_parser_ignores_namespaces_and_builds_schedule_from_locked_constraints():

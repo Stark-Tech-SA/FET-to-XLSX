@@ -100,6 +100,7 @@ class FetData:
     days: list[str] = field(default_factory=list)
     hours: list[str] = field(default_factory=list)
     scheduled_activities: list[ScheduledActivity] = field(default_factory=list)
+    unscheduled_activity_ids: list[str] = field(default_factory=list)
 
     @property
     def student_sets_count(self) -> int:
