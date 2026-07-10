@@ -59,6 +59,15 @@ El exportador agrupa por `Students` para crear hojas individuales de grupos/fich
 Si el `.fet` solo contiene datos de entrada y restricciones generales, y tampoco existen archivos XML de resultado junto al `.fet`, no existe suficiente información para reconstruir un horario final; en ese caso se informa que no hay solución incluida.
 
 
+
+## Base Horarios para el Blog
+
+El exportador general agrega al final, justo antes de guardar el workbook, la función `generar_base_horarios_blog(workbook)`. Esta función no vuelve a leer el `.fet`: toma la hoja **Actividades** ya generada en el workbook abierto, elimina solo una hoja previa **Base Horarios para el Blog** si existe, y crea una nueva con las columnas exactas:
+
+`ficha | programa | jornada | dia | hora_inicio | hora_fin | competencia | instructor | aula | fecha_inicio | fecha_fin`
+
+Las filas se crean solo para actividades con **Día** y **Hora**. La hora de inicio se convierte a `datetime.time`, la hora final se calcula como `hora_inicio + Duración` horas, `SIN DOCENTE` se exporta vacío y las fechas quedan vacías para diligenciamiento manual.
+
 ## Hoja para base de datos CMM
 
 La función `export_horarios_fet_sheet_from_fet()` permite actualizar un Excel existente llamado `cmm-horarios-base-datos.xlsx` sin recrearlo desde cero. Abre el libro con `openpyxl.load_workbook`, conserva las hojas existentes como **Horarios** e **Instrucciones**, elimina solo una hoja previa **Horarios_FET** si existe y la vuelve a crear con estas columnas exactas:

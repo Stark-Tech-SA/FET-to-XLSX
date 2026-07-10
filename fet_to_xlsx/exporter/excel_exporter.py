@@ -10,6 +10,7 @@ from typing import Iterable, NamedTuple
 from openpyxl import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
+from fet_to_xlsx.exporter.blog_base_exporter import generar_base_horarios_blog
 from fet_to_xlsx.exporter.formatting import style_table
 from fet_to_xlsx.parser.models import Activity, FetData, ScheduledActivity
 
@@ -45,6 +46,7 @@ class ExcelExporter:
         conflicts.extend(self._resource_timetables(wb, data, "teacher"))
         conflicts.extend(self._resource_timetables(wb, data, "room"))
         self._conflicts(wb.create_sheet("Conflictos"), conflicts)
+        generar_base_horarios_blog(wb)
         wb.save(path)
         return path
 
