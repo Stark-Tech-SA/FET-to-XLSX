@@ -58,6 +58,26 @@ El exportador agrupa por `Students` para crear hojas individuales de grupos/fich
 
 Si el `.fet` solo contiene datos de entrada y restricciones generales, y tampoco existen archivos XML de resultado junto al `.fet`, no existe suficiente información para reconstruir un horario final; en ese caso se informa que no hay solución incluida.
 
+
+## Hoja para base de datos CMM
+
+La función `export_horarios_fet_sheet_from_fet()` permite actualizar un Excel existente llamado `cmm-horarios-base-datos.xlsx` sin recrearlo desde cero. Abre el libro con `openpyxl.load_workbook`, conserva las hojas existentes como **Horarios** e **Instrucciones**, elimina solo una hoja previa **Horarios_FET** si existe y la vuelve a crear con estas columnas exactas:
+
+`ficha | programa | jornada | dia | hora_inicio | hora_fin | competencia | instructor | aula | fecha_inicio | fecha_fin`
+
+La transformación cruza `Activity/Id` con `ConstraintActivityPreferredStartingTime/Activity_Id`, calcula `hora_fin` usando `Duration` y `Hours_List`, deja fechas vacías y omite actividades sin día/hora asignados.
+
+Ejemplo de uso desde Python:
+
+```python
+from fet_to_xlsx.exporter.cmm_database_exporter import export_horarios_fet_sheet_from_fet
+
+export_horarios_fet_sheet_from_fet(
+    "horario.fet",
+    "cmm-horarios-base-datos.xlsx",
+)
+```
+
 ## Decisiones de diseño
 
 Los archivos `.fet` pueden variar entre versiones de FET. Por eso el parser:
